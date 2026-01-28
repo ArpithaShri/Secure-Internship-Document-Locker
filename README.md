@@ -44,10 +44,26 @@ npm run dev
 The application will be available at `http://localhost:3000`.
 
 ## Features
-- **Registration**: Register as Student, Recruiter, or Admin.
-- **Login**: Basic email/password login (plaintext).
-- **Dashboard**:
-  - Students can upload Resume/Offer Letter.
-  - All users can view the list of uploaded documents.
-- **Admin Panel**: Admin users can view all registered users and all uploaded documents.
-- **File Storage**: Documents are stored in the `backend/uploads` folder.
+- **Phase 0: Base App**
+  - Registration: Register as Student, Recruiter, or Admin.
+  - Dashboard: Student upload, viewing documents.
+  - Admin Panel: List users and documents.
+- **Phase 1: Authentication (NIST SP 800-63 Style)**
+  - **Single-Factor**: Secure password hashing with `bcrypt`.
+  - **Multi-Factor (MFA)**: Two-step login (Password -> OTP).
+  - **JWT Authorization**: Issued after OTP verification; required for all protected API calls.
+  - **Role-Based Access**: Restricted Admin routes using middleware.
+- **Phase 2: Authorization (Access Control)**
+  - **ACL Matrix**: Defined programmatic permissions for Student, Recruiter, and Admin.
+  - **Resource Protection**: Enforced document ownership and approval-based access.
+  - **Access Requests**: Recruiter request flow with Admin approval system.
+  - **Programmatic Enforcement**: `authorize` middleware checks JWT roles against the ACL.
+
+## Phase 2 Implementation Details
+- **Access Control Matrix**:
+    - Students: Create/Read own documents.
+    - Recruiters: Request access; View only if approved.
+    - Admins: Manage users and approve access requests.
+- **AccessRequest Model**: Tracks relations between recruiters and student documents.
+- **ACL Logic**: Centralized in `backend/security/acl.js`.
+- **Enforcement**: Routes in `docRoutes.js` and `accessRoutes.js` verify both role and specific ownership/approval status.

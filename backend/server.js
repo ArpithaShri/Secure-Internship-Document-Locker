@@ -20,6 +20,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/docs', require('./routes/docRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/access', require('./routes/accessRoutes'));
 
 // Static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, '/uploads')));

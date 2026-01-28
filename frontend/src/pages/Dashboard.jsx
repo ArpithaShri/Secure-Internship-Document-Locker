@@ -40,7 +40,6 @@ const Dashboard = () => {
         formData.append('document', file);
         formData.append('title', uploadData.title);
         formData.append('docType', uploadData.docType);
-        formData.append('uploadedBy', user._id);
 
         try {
             await api.post('/docs/upload', formData, {
@@ -51,7 +50,26 @@ const Dashboard = () => {
             setFile(null);
             fetchDocuments();
         } catch (err) {
-            setMessage('Upload failed');
+            setMessage(err.response?.data?.error || 'Upload failed');
+        }
+    };
+
+    const requestAccess = async (docId) => {
+        try {
+            await api.post('/access/request', { documentId: docId });
+            setMessage('Access request sent to admin!');
+            fetchDocuments();
+        } catch (err) {
+            setMessage(err.response?.data?.message || 'Request failed');
+        }
+    };
+
+    const viewDocument = async (docId) => {
+        try {
+            const res = await api.get(`/docs/view/${docId}`);
+            window.open(`http://localhost:5000/${res.data.filePath}`, '_blank');
+        } catch (err) {
+            alert(err.response?.data?.error || 'Access Denied: Admin approval required');
         }
     };
 
@@ -65,7 +83,10 @@ const Dashboard = () => {
     return (
         <div className="container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1>Dashboard</h1>
+                <div>
+                    <h1>Welcome, {user.username}</h1>
+                    <p style={{ color: 'var(--text-muted)' }}>MERN Authorization (Phase 2) Active</p>
+                </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <span className={`status-badge role-${user.role}`}>{user.role}</span>
                     <button onClick={logout} className="btn btn-secondary">Logout</button>
@@ -73,10 +94,15 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {message && (
+                <div className="card" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: message.includes('success') || message.includes('sent') ? '#dcfce7' : '#fee2e2' }}>
+                    {message}
+                </div>
+            )}
+
             {user.role === 'student' && (
                 <div className="card" style={{ marginBottom: '2rem' }}>
                     <h3>Upload New Document</h3>
-                    {message && <p style={{ color: message.includes('success') ? 'green' : 'red' }}>{message}</p>}
                     <form onSubmit={handleFileUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
                         <div className="form-group" style={{ marginBottom: 0 }}>
                             <label>Title</label>
@@ -99,14 +125,14 @@ const Dashboard = () => {
             )}
 
             <div className="card">
-                <h3>Documents</h3>
+                <h3>{user.role === 'student' ? 'My Documents' : 'Available Documents'}</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>Title</th>
                             <th>Type</th>
                             <th>Uploaded By</th>
-                            <th>Date</th>
+                            {user.role === 'recruiter' && <th>Access Status</th>}
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -116,9 +142,22 @@ const Dashboard = () => {
                                 <td>{doc.title}</td>
                                 <td>{doc.docType}</td>
                                 <td>{doc.uploadedBy?.username || 'Unknown'}</td>
-                                <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
+                                {user.role === 'recruiter' && (
+                                    <td>
+                                        <span className={`status-badge`} style={{
+                                            backgroundColor: doc.accessStatus === 'approved' ? '#dcfce7' : doc.accessStatus === 'pending' ? '#fef9c3' : '#f3f4f6',
+                                            color: doc.accessStatus === 'approved' ? '#166534' : doc.accessStatus === 'pending' ? '#854d0e' : '#6b7280'
+                                        }}>
+                                            {doc.accessStatus}
+                                        </span>
+                                    </td>
+                                )}
                                 <td>
-                                    <a href={`http://localhost:5000/${doc.filePath}`} target="_blank" rel="noopener noreferrer" className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</a>
+                                    {user.role === 'recruiter' && doc.accessStatus === 'none' ? (
+                                        <button onClick={() => requestAccess(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Request Access</button>
+                                    ) : (
+                                        <button onClick={() => viewDocument(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
+                                    )}
                                 </td>
                             </tr>
                         )) : (

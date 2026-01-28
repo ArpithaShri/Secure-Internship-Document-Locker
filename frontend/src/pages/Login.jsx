@@ -8,6 +8,7 @@ const Login = () => {
         password: '',
     });
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const { email, password } = formData;
@@ -16,12 +17,19 @@ const Login = () => {
 
     const onSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
         try {
             const res = await api.post('/auth/login', formData);
-            localStorage.setItem('user', JSON.stringify(res.data));
-            navigate('/dashboard');
+            if (res.data.message === 'OTP sent') {
+                // Store userId temporarily for OTP verification
+                localStorage.setItem('temp_userId', res.data.userId);
+                navigate('/verify-otp');
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -39,7 +47,9 @@ const Login = () => {
                         <label>Password</label>
                         <input type="password" name="password" value={password} onChange={onChange} required placeholder="Enter password" />
                     </div>
-                    <button type="submit" className="btn" style={{ width: '100%' }}>Login</button>
+                    <button type="submit" className="btn" style={{ width: '100%' }} disabled={loading}>
+                        {loading ? 'Processing...' : 'Login'}
+                    </button>
                 </form>
                 <p style={{ textAlign: 'center', marginTop: '1.5rem' }}>
                     Don't have an account? <Link to="/register">Register</Link>

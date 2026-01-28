@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
-    password: {
+    passwordHash: {
         type: String,
         required: true,
     },
@@ -18,6 +18,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['student', 'recruiter', 'admin'],
         default: 'student',
+    },
+    otpCode: {
+        type: String,
+    },
+    otpExpiry: {
+        type: Date,
     },
 }, { timestamps: true });
 
