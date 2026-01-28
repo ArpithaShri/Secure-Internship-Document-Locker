@@ -1,74 +1,71 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const Document = require('../models/Document');
 const AccessRequest = require('../models/AccessRequest');
 const verifyToken = require('../middleware/verifyToken');
-const authorize = require('../middleware/authorize');
+const { encryptFile, decryptFile } = require('../security/aesEncryption');
+const ACL = require('../security/acl');
 
-// Multer Config
-const storage = multer.diskStorage({
-    destination(req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename(req, file, cb) {
-        cb(
-            null,
-            `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`
-        );
-    },
-});
-
+// Use Memory Storage for Multi-part form data to handle encryption before saving to DB
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// @desc    Upload a document (Student Only)
+// @desc    Upload an Encrypted Document (Phase 3)
 // @route   POST /api/docs/upload
 router.post('/upload', verifyToken, upload.single('document'), async (req, res) => {
     try {
         const { title, docType } = req.body;
 
-        // Perform authorization check AFTER multer has parsed the body
-        const ACL = require('../security/acl');
-        const rolePermissions = ACL.roles[req.user.role];
-        const permissions = rolePermissions ? rolePermissions[docType] : null;
-
-        if (!permissions || !permissions.includes('upload')) {
-            return res.status(403).json({ error: `Access Denied: Your role cannot upload ${docType}` });
-        }
-
         if (!req.file) {
             return res.status(400).json({ message: 'Please upload a file' });
         }
 
+        // 1. Authorization Check (Phase 2)
+        const rolePermissions = ACL.roles[req.user.role];
+        const permissions = rolePermissions ? rolePermissions[docType] : null;
+        if (!permissions || !permissions.includes('upload')) {
+            return res.status(403).json({ error: `Access Denied: Your role cannot upload ${docType}` });
+        }
+
+        // 2. Encryption (Phase 3)
+        // Encrypt the file buffer received from memory storage
+        const { encryptedData, iv } = encryptFile(req.file.buffer);
+
+        // 3. Save to MongoDB
         const document = await Document.create({
             title,
             docType,
-            filePath: req.file.path,
-            uploadedBy: req.user.id, // Enforce ownership from JWT
+            encryptedData,
+            iv,
+            originalFileName: req.file.originalname,
+            uploadedBy: req.user.id,
         });
 
-        res.status(201).json(document);
+        res.status(201).json({
+            message: 'Document stored securely (encrypted)',
+            id: document._id
+        });
     } catch (error) {
+        console.error('Upload Error:', error);
         res.status(500).json({ message: error.message });
     }
 });
 
-// @desc    Get documents (Role-based filtering)
+// @desc    Get documents metadata
 // @route   GET /api/docs/all
 router.get('/all', verifyToken, async (req, res) => {
     try {
         let query = {};
-
-        // Ownership Enforcement: Students only see their own
         if (req.user.role === 'student') {
             query.uploadedBy = req.user.id;
         }
-        // Admin and Recruiter see all (metadata only for Recruiter usually, but we list them all here)
 
-        const documents = await Document.find(query).populate('uploadedBy', 'username email role');
+        // Exclude large encryptedData for metadata list
+        const documents = await Document.find(query)
+            .select('-encryptedData')
+            .populate('uploadedBy', 'username email role');
 
-        // If recruiter, we need to attach "access status" to each document
         if (req.user.role === 'recruiter') {
             const requests = await AccessRequest.find({ recruiterId: req.user.id });
             const docsWithStatus = documents.map(doc => {
@@ -88,43 +85,43 @@ router.get('/all', verifyToken, async (req, res) => {
     }
 });
 
-// @desc    View specific document (Enforce approval for Recruiter)
-// @route   GET /api/docs/view/:id
-router.get('/view/:id', verifyToken, async (req, res) => {
+// @desc    Download and Decrypt Document (Phase 3)
+// @route   GET /api/docs/download/:id
+router.get('/download/:id', verifyToken, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ message: 'Document not found' });
 
-        // 1. Admin has full access
-        if (req.user.role === 'admin') {
-            return res.json({ filePath: doc.filePath });
-        }
-
-        // 2. Student has access if it's their own
-        if (req.user.role === 'student') {
-            if (doc.uploadedBy.toString() !== req.user.id) {
-                return res.status(403).json({ error: 'Access Denied: Not your document' });
-            }
-            return res.json({ filePath: doc.filePath });
-        }
-
-        // 3. Recruiter has access only if approved
-        if (req.user.role === 'recruiter') {
+        // 1. Authorization Check (Phase 2)
+        let hasAccess = false;
+        if (req.user.role === 'admin') hasAccess = true;
+        else if (req.user.role === 'student' && doc.uploadedBy.toString() === req.user.id) hasAccess = true;
+        else if (req.user.role === 'recruiter') {
             const approval = await AccessRequest.findOne({
                 recruiterId: req.user.id,
                 documentId: req.params.id,
                 status: 'approved'
             });
-
-            if (!approval) {
-                return res.status(403).json({ error: 'Access Denied: Admin approval required' });
-            }
-            return res.json({ filePath: doc.filePath });
+            if (approval) hasAccess = true;
         }
 
-        res.status(403).json({ error: 'Access Denied: Unknown role' });
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access Denied: You do not have permission to download this document' });
+        }
+
+        // 2. Decryption (Phase 3)
+        const decryptedBuffer = decryptFile(doc.encryptedData, doc.iv);
+
+        // 3. Send File
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${doc.originalFileName}"`,
+        });
+        res.send(decryptedBuffer);
+
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Download Error:', error);
+        res.status(500).json({ message: 'Error processing document' });
     }
 });
 

@@ -10,7 +10,16 @@ const documentSchema = new mongoose.Schema({
         required: true,
         enum: ['resume', 'offerLetter'],
     },
-    filePath: {
+    // Encryption specific fields
+    encryptedData: {
+        type: Buffer,
+        required: true,
+    },
+    iv: {
+        type: String,
+        required: true,
+    },
+    originalFileName: {
         type: String,
         required: true,
     },

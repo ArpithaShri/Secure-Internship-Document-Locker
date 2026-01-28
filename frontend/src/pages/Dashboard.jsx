@@ -64,12 +64,20 @@ const Dashboard = () => {
         }
     };
 
-    const viewDocument = async (docId) => {
+    const viewDocument = async (docId, fileName) => {
         try {
-            const res = await api.get(`/docs/view/${docId}`);
-            window.open(`http://localhost:5000/${res.data.filePath}`, '_blank');
+            const res = await api.get(`/docs/download/${docId}`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', fileName || 'document.pdf');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
         } catch (err) {
-            alert(err.response?.data?.error || 'Access Denied: Admin approval required');
+            alert('Access Denied: You do not have permission or approval to view this document');
         }
     };
 
@@ -156,7 +164,7 @@ const Dashboard = () => {
                                     {user.role === 'recruiter' && doc.accessStatus === 'none' ? (
                                         <button onClick={() => requestAccess(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Request Access</button>
                                     ) : (
-                                        <button onClick={() => viewDocument(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
+                                        <button onClick={() => viewDocument(doc._id, doc.originalFileName)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
                                     )}
                                 </td>
                             </tr>
