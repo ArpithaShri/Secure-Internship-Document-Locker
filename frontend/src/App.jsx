@@ -11,7 +11,7 @@ function App() {
         <Router>
             <nav>
                 <div style={{ fontWeight: 'bold', fontSize: '1.25rem', color: 'var(--primary)' }}>
-                    🔒 InternshipLocker
+                    Internship Locker
                 </div>
             </nav>
             <Routes>

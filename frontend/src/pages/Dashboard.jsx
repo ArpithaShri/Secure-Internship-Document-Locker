@@ -123,10 +123,12 @@ const Dashboard = () => {
 
     return (
         <div className="container">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                <div className="header-content">
                     <h1>Welcome, {user.username}</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>MERN Authorization (Phase 2) Active</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                        
+                    </p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <span className={`status-badge role-${user.role}`}>{user.role}</span>
@@ -136,18 +138,18 @@ const Dashboard = () => {
             </div>
 
             {message && (
-                <div className="card" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: message.includes('success') || message.includes('sent') ? '#dcfce7' : '#fee2e2' }}>
-                    {message}
+                <div className={`alert ${message.toLowerCase().includes('success') || message.toLowerCase().includes('sent') ? 'alert-success' : 'alert-error'}`}>
+                    {message.toLowerCase().includes('success') ? '✅ ' : '⚠️ '} {message}
                 </div>
             )}
 
             {user.role === 'student' && (
                 <div className="card" style={{ marginBottom: '2rem' }}>
                     <h3>Upload New Document</h3>
-                    <form onSubmit={handleFileUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                    <form onSubmit={handleFileUpload} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', alignItems: 'end' }}>
                         <div className="form-group" style={{ marginBottom: 0 }}>
                             <label>Title</label>
-                            <input type="text" value={uploadData.title} onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })} required />
+                            <input type="text" placeholder="Resume 2024" value={uploadData.title} onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })} required />
                         </div>
                         <div className="form-group" style={{ marginBottom: 0 }}>
                             <label>Type</label>
@@ -160,7 +162,7 @@ const Dashboard = () => {
                             <label>File</label>
                             <input type="file" onChange={(e) => setFile(e.target.files[0])} required />
                         </div>
-                        <button type="submit" className="btn">Upload</button>
+                        <button type="submit" className="btn">Upload Document</button>
                     </form>
                 </div>
             )}
@@ -186,8 +188,9 @@ const Dashboard = () => {
                                 {user.role === 'recruiter' && (
                                     <td>
                                         <span className={`status-badge`} style={{
-                                            backgroundColor: doc.accessStatus === 'approved' ? '#dcfce7' : doc.accessStatus === 'pending' ? '#fef9c3' : '#f3f4f6',
-                                            color: doc.accessStatus === 'approved' ? '#166534' : doc.accessStatus === 'pending' ? '#854d0e' : '#6b7280'
+                                            backgroundColor: doc.accessStatus === 'approved' ? 'rgba(16, 185, 129, 0.1)' : doc.accessStatus === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                                            color: doc.accessStatus === 'approved' ? '#10b981' : doc.accessStatus === 'pending' ? '#f59e0b' : '#94a3b8',
+                                            border: `1px solid ${doc.accessStatus === 'approved' ? 'rgba(16, 185, 129, 0.2)' : doc.accessStatus === 'pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(148, 163, 184, 0.2)'}`
                                         }}>
                                             {doc.accessStatus}
                                         </span>
@@ -195,12 +198,12 @@ const Dashboard = () => {
                                 )}
                                 <td>
                                     {user.role === 'recruiter' && doc.accessStatus === 'none' ? (
-                                        <button onClick={() => requestAccess(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Request Access</button>
+                                        <button onClick={() => requestAccess(doc._id)} className="btn" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>Request Access</button>
                                     ) : (
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button onClick={() => viewDocument(doc._id, doc.originalFileName)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
+                                            <button onClick={() => viewDocument(doc._id, doc.originalFileName)} className="btn" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>View</button>
                                             {(user.role === 'recruiter' || user.role === 'admin') && doc.verifiedByAdmin && (
-                                                <button onClick={() => handleShowQR(doc._id)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#ec4899' }}>Verify QR</button>
+                                                <button onClick={() => handleShowQR(doc._id)} className="btn btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', borderColor: 'var(--accent)', color: 'var(--accent)' }}>Verify QR</button>
                                             )}
                                         </div>
                                     )}
@@ -208,7 +211,7 @@ const Dashboard = () => {
                             </tr>
                         )) : (
                             <tr>
-                                <td colSpan="5" style={{ textAlign: 'center' }}>No documents found</td>
+                                <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No documents found</td>
                             </tr>
                         )}
                     </tbody>
@@ -218,16 +221,22 @@ const Dashboard = () => {
             {showQRCode && (
                 <div className="card" style={{ marginTop: '2rem', textAlign: 'center' }}>
                     <h3>Document Verification QR</h3>
-                    <img src={qrData.code} alt="Verification QR" style={{ margin: '1rem 0' }} />
-                    <div style={{ marginBottom: '1rem' }}>
-                        <button onClick={handleDecodeToken} className="btn" style={{ marginRight: '0.5rem' }}>Decode Token (Base64)</button>
+                    <div style={{ background: 'white', padding: '1.5rem', display: 'inline-block', borderRadius: '1rem', margin: '1rem 0' }}>
+                        <img src={qrData.code} alt="Verification QR" />
+                    </div>
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                        <button onClick={handleDecodeToken} className="btn">Decode Token (Base64)</button>
                         <button onClick={() => setShowQRCode(false)} className="btn btn-secondary">Close</button>
                     </div>
                     {decodedToken && (
-                        <div style={{ textAlign: 'left', background: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-                            <strong>Decoded Info:</strong>
-                            <pre>{JSON.stringify(decodedToken, null, 2)}</pre>
-                            <p style={{ color: 'green', fontWeight: 'bold', marginTop: '1rem' }}>✅ Document Verified via Scanned/Decoded Token</p>
+                        <div style={{ textAlign: 'left', background: 'rgba(15, 23, 42, 0.6)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--glass-border)' }}>
+                            <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>DECODED METADATA:</strong>
+                            <pre style={{ fontSize: '0.8rem', overflowX: 'auto', whiteSpace: 'pre-wrap', color: 'var(--text-main)' }}>
+                                {JSON.stringify(decodedToken, null, 2)}
+                            </pre>
+                            <div className="alert alert-success" style={{ marginTop: '1.5rem', marginBottom: 0 }}>
+                                ✅ Document Verified: Authenticity & Integrity Confirmed
+                            </div>
                         </div>
                     )}
                 </div>
