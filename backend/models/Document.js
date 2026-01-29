@@ -23,6 +23,17 @@ const documentSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    // Phase 4: Hashing & Signature
+    docHash: {
+        type: String,
+    },
+    adminSignature: {
+        type: String,
+    },
+    verifiedByAdmin: {
+        type: Boolean,
+        default: false,
+    },
     uploadedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

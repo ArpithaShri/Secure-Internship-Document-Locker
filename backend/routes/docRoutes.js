@@ -6,6 +6,8 @@ const AccessRequest = require('../models/AccessRequest');
 const verifyToken = require('../middleware/verifyToken');
 const { encryptFile, decryptFile } = require('../security/aesEncryption');
 const ACL = require('../security/acl');
+const { hashDocument } = require('../security/documentHash');
+const { verifyHash } = require('../security/digitalSignature');
 
 // Use Memory Storage for Multi-part form data to handle encryption before saving to DB
 const storage = multer.memoryStorage();
@@ -29,7 +31,6 @@ router.post('/upload', verifyToken, upload.single('document'), async (req, res) 
         }
 
         // 2. Encryption (Phase 3)
-        // Encrypt the file buffer received from memory storage
         const { encryptedData, iv } = encryptFile(req.file.buffer);
 
         // 3. Save to MongoDB
@@ -61,7 +62,6 @@ router.get('/all', verifyToken, async (req, res) => {
             query.uploadedBy = req.user.id;
         }
 
-        // Exclude large encryptedData for metadata list
         const documents = await Document.find(query)
             .select('-encryptedData')
             .populate('uploadedBy', 'username email role');
@@ -122,6 +122,52 @@ router.get('/download/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Download Error:', error);
         res.status(500).json({ message: 'Error processing document' });
+    }
+});
+
+// @desc    Verify document authenticity (Digital Signature Verification)
+// @route   GET /api/docs/verify/:id
+router.get('/verify/:id', verifyToken, async (req, res) => {
+    try {
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ message: 'Document not found' });
+
+        if (!doc.verifiedByAdmin || !doc.adminSignature) {
+            return res.json({
+                valid: false,
+                message: '❌ Document has not been signed by an administrator.'
+            });
+        }
+
+        // 1. Decrypt document content to get original for hashing
+        const decryptedBuffer = decryptFile(doc.encryptedData, doc.iv);
+
+        // 2. Re-compute the hash of the current data
+        const currentHash = hashDocument(decryptedBuffer);
+
+        // 3. Verify signature against the hash using RSA Public Key
+        const isSignatureValid = verifyHash(currentHash, doc.adminSignature);
+
+        // 4. Check if the hash matches the stored hash (Integrity check)
+        const isIntegrityIntact = (currentHash === doc.docHash);
+
+        if (isSignatureValid && isIntegrityIntact) {
+            res.json({
+                valid: true,
+                message: '✅ Signature Verified: Document is Authentic and Untampered.',
+                details: {
+                    signer: 'Administrator',
+                    hash: currentHash
+                }
+            });
+        } else {
+            res.json({
+                valid: false,
+                message: '❌ Signature Invalid: Document may have been modified or signature is tampered.'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 

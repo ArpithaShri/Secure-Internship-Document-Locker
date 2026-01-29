@@ -46,6 +46,16 @@ const Admin = () => {
         }
     };
 
+    const handleSignDocument = async (docId) => {
+        try {
+            const res = await api.post(`/admin/sign-document/${docId}`);
+            alert(res.data.message);
+            fetchAdminData();
+        } catch (err) {
+            alert('Signing failed: ' + (err.response?.data?.message || 'Error'));
+        }
+    };
+
     if (loading) return <div className="container">Loading...</div>;
 
     return (
@@ -118,6 +128,8 @@ const Admin = () => {
                             <th>Type</th>
                             <th>Uploaded By</th>
                             <th>Role</th>
+                            <th>Verification</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,6 +139,17 @@ const Admin = () => {
                                 <td>{doc.docType}</td>
                                 <td>{doc.uploadedBy?.username}</td>
                                 <td><span className={`status-badge role-${doc.uploadedBy?.role}`}>{doc.uploadedBy?.role}</span></td>
+                                <td>
+                                    {doc.verifiedByAdmin ?
+                                        <span className="status-badge" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>Signed ✅</span> :
+                                        <span className="status-badge" style={{ backgroundColor: '#fee2e2', color: '#991b1b' }}>Unsigned</span>
+                                    }
+                                </td>
+                                <td>
+                                    {!doc.verifiedByAdmin && (
+                                        <button onClick={() => handleSignDocument(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Sign</button>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

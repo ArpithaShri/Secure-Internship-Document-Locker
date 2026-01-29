@@ -81,6 +81,15 @@ const Dashboard = () => {
         }
     };
 
+    const handleVerifyDocument = async (docId) => {
+        try {
+            const res = await api.get(`/docs/verify/${docId}`);
+            alert(res.data.message);
+        } catch (err) {
+            alert('Verification service failed');
+        }
+    };
+
     const logout = () => {
         localStorage.removeItem('user');
         navigate('/login');
