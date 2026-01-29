@@ -127,7 +127,6 @@ const Dashboard = () => {
                 <div className="header-content">
                     <h1>Welcome, {user.username}</h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                        
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -229,7 +228,7 @@ const Dashboard = () => {
                         <button onClick={() => setShowQRCode(false)} className="btn btn-secondary">Close</button>
                     </div>
                     {decodedToken && (
-                        <div style={{ textAlign: 'left', background: 'rgba(15, 23, 42, 0.6)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--glass-border)' }}>
+                        <div style={{ textAlign: 'left', background: 'var(--table-row)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--glass-border)' }}>
                             <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '0.5rem' }}>DECODED METADATA:</strong>
                             <pre style={{ fontSize: '0.8rem', overflowX: 'auto', whiteSpace: 'pre-wrap', color: 'var(--text-main)' }}>
                                 {JSON.stringify(decodedToken, null, 2)}
