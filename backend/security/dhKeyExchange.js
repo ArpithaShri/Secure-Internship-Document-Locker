@@ -38,10 +38,11 @@ const computeSharedKey = (dhObject, otherPublicKey) => {
     return aesKey;
 };
 
-// Establish the shared key for the application session
-const serverInfo = generateServerKeys();
-const clientInfo = generateClientKeys(serverInfo.prime, serverInfo.generator);
-const SHARED_AES_KEY = computeSharedKey(serverInfo.server, clientInfo.clientPublicKey);
+// Establish a stable shared key for the application session
+// In Phase 3, we simulate DH, but for persistence across server restarts,
+// we derive it from a stable secret (like JWT_SECRET).
+const stableSecret = process.env.JWT_SECRET || 'internship-locker-stable-secret';
+const SHARED_AES_KEY = crypto.createHash('sha256').update(stableSecret).digest();
 
 module.exports = {
     SHARED_AES_KEY,

@@ -7,19 +7,27 @@ const crypto = require('crypto');
  * The Admin signs with a Private Key, and anyone can verify with the Public Key.
  */
 
-// Generate RSA Key Pair (2048-bit)
-// In a production app, these would be loaded from secure .pem files or environment variables.
-const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-    publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-    },
-    privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-    }
-});
+const fs = require('fs');
+const path = require('path');
+
+const KEY_PATH = path.join(__dirname, 'admin_keys.json');
+
+let privateKey, publicKey;
+
+if (fs.existsSync(KEY_PATH)) {
+    const keys = JSON.parse(fs.readFileSync(KEY_PATH, 'utf8'));
+    privateKey = keys.privateKey;
+    publicKey = keys.publicKey;
+} else {
+    const keyPair = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
+    privateKey = keyPair.privateKey;
+    publicKey = keyPair.publicKey;
+    fs.writeFileSync(KEY_PATH, JSON.stringify({ privateKey, publicKey }), 'utf8');
+}
 
 /**
  * Signs a hash using the Admin's RSA Private Key

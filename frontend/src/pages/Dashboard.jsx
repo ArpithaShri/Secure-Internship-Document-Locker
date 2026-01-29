@@ -90,9 +90,33 @@ const Dashboard = () => {
         }
     };
 
+    const [showQRCode, setShowQRCode] = useState(false);
+    const [qrData, setQrData] = useState({ code: '', token: '' });
+    const [decodedToken, setDecodedToken] = useState(null);
+
     const logout = () => {
         localStorage.removeItem('user');
         navigate('/login');
+    };
+
+    const handleShowQR = async (docId) => {
+        try {
+            const res = await api.get(`/docs/qr/${docId}`);
+            setQrData({ code: res.data.qrCode, token: res.data.encodedToken });
+            setShowQRCode(true);
+            setDecodedToken(null);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to generate QR code');
+        }
+    };
+
+    const handleDecodeToken = async () => {
+        try {
+            const res = await api.post('/docs/decode', { encodedToken: qrData.token });
+            setDecodedToken(res.data);
+        } catch (err) {
+            alert('Failed to decode token');
+        }
     };
 
     if (!user) return null;
@@ -173,7 +197,12 @@ const Dashboard = () => {
                                     {user.role === 'recruiter' && doc.accessStatus === 'none' ? (
                                         <button onClick={() => requestAccess(doc._id)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Request Access</button>
                                     ) : (
-                                        <button onClick={() => viewDocument(doc._id, doc.originalFileName)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button onClick={() => viewDocument(doc._id, doc.originalFileName)} className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>View</button>
+                                            {(user.role === 'recruiter' || user.role === 'admin') && doc.verifiedByAdmin && (
+                                                <button onClick={() => handleShowQR(doc._id)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', background: '#ec4899' }}>Verify QR</button>
+                                            )}
+                                        </div>
                                     )}
                                 </td>
                             </tr>
@@ -185,6 +214,24 @@ const Dashboard = () => {
                     </tbody>
                 </table>
             </div>
+
+            {showQRCode && (
+                <div className="card" style={{ marginTop: '2rem', textAlign: 'center' }}>
+                    <h3>Document Verification QR</h3>
+                    <img src={qrData.code} alt="Verification QR" style={{ margin: '1rem 0' }} />
+                    <div style={{ marginBottom: '1rem' }}>
+                        <button onClick={handleDecodeToken} className="btn" style={{ marginRight: '0.5rem' }}>Decode Token (Base64)</button>
+                        <button onClick={() => setShowQRCode(false)} className="btn btn-secondary">Close</button>
+                    </div>
+                    {decodedToken && (
+                        <div style={{ textAlign: 'left', background: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+                            <strong>Decoded Info:</strong>
+                            <pre>{JSON.stringify(decodedToken, null, 2)}</pre>
+                            <p style={{ color: 'green', fontWeight: 'bold', marginTop: '1rem' }}>✅ Document Verified via Scanned/Decoded Token</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

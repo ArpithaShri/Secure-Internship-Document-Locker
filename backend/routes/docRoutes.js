@@ -171,4 +171,49 @@ router.get('/verify/:id', verifyToken, async (req, res) => {
     }
 });
 
+const { encodeBase64, decodeBase64, generateQRCode } = require('../security/encoding');
+
+// @desc    Generate QR code for a signed document
+// @route   GET /api/docs/qr/:docId
+router.get('/qr/:docId', verifyToken, async (req, res) => {
+    try {
+        const doc = await Document.findById(req.params.docId);
+        if (!doc) return res.status(404).json({ message: 'Document not found' });
+
+        if (!doc.verifiedByAdmin || !doc.adminSignature) {
+            return res.status(400).json({ message: 'Document must be signed by admin before QR generation' });
+        }
+
+        const tokenData = JSON.stringify({
+            docId: doc._id,
+            docHash: doc.docHash,
+            adminSignature: doc.adminSignature
+        });
+
+        const encodedToken = encodeBase64(tokenData);
+        const qrCode = await generateQRCode(encodedToken);
+
+        res.json({
+            qrCode,
+            encodedToken
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Decode verification token
+// @route   POST /api/docs/decode
+router.post('/decode', verifyToken, async (req, res) => {
+    try {
+        const { encodedToken } = req.body;
+        if (!encodedToken) return res.status(400).json({ message: 'Token required' });
+
+        const decodedData = JSON.parse(decodeBase64(encodedToken));
+        res.json(decodedData);
+    } catch (error) {
+        res.status(400).json({ message: 'Invalid token' });
+    }
+});
+
 module.exports = router;
